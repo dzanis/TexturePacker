@@ -42,7 +42,7 @@ public:
 private:
     // структура для хранения областей на атласе
     //или любых других объектов у которых есть размер
-    struct Texture
+    struct Image
     {
         int id;
         int x;
@@ -51,11 +51,11 @@ private:
         int height;
     };
 
-    Texture *texArr;// массив
+    Image *imgArr;// массив
     int size = 0;
     int id = 0;
     int nextPow2(int newSize) const;
-    void BubbleSort(Texture *&tex, bool sortID);
+    void BubbleSort(Image *&img, bool sortID);
 };
 
 #endif // TEXTUREPACKER_H
