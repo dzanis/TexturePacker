@@ -2,39 +2,27 @@
 
 #define NULL 0
 
-//ftp://ftp.oregonstate.edu/.1/vectorlinux/veclinux-5.9/source/extra/kde/kdebase/kdebase-patches/kdebase3-SuSE-11.0-52/kdebase-SuSE/ksplashx/qrect.h
+
+//Rect взят отсюда
+//https://code.woboq.org/qt5/qtbase/src/corelib/tools/qrect.h.html#_ZN5QRectC1Ev
 struct Rect
 {
 private:
-    int x1;
-    int y1;
-    int x2;
-    int y2;
+    int x1, y1, x2 ,y2;
 
 public:
     Rect()	{ x1 = y1 = 0; x2 = y2 = -1; }
-    inline Rect(int left, int top , int width, int height)
-    {
-       x1 = left;
-       y1 = top;
-       x2 = (left+width-1);
-       y2 = (top+height-1);
-    }
+    inline Rect(int aleft, int atop, int awidth, int aheight):
+     x1(aleft), y1(atop), x2(aleft + awidth - 1), y2(atop + aheight - 1) {}
 
-    inline int x()
-    {return x1;}
-    inline int y()
-    {return y1;}
-    inline int left()
-    {return x1;}
-    inline int top()
-    {return y1;}
-    inline int width()
-    {return x2;}
-    inline int height()
-    {return y2;}
-    void setWidth(int value){ x2 = value;}
-    void setHeight(int value){ y2 = value;}
+    inline int x()    {return x1;}
+    inline int y()    {return y1;}
+    inline int left()    {return x1;}
+    inline int top()    {return y1;}
+    inline int width()    {return x2 - x1 + 1;}
+    inline int height()    {return y2 - y1 + 1;}
+    void setWidth(int w){ x2 = (x1 + w - 1);}
+    void setHeight(int h){ y2 = (y1 + h - 1);}
 };
 
 // алгоритм взят отсюда
@@ -114,7 +102,7 @@ TexturePacker::TexturePacker()
 TexturePacker::~TexturePacker()
 {
    // очишяю ненужный массив
-    delete[] texArr;
+    delete[] imgArr;
 }
 
 
@@ -130,10 +118,10 @@ int TexturePacker::nextPow2(int newSize) const
 }
 
 //http://mathbits.com/MathBits/CompSci/Arrays/Bubble.htm
-void TexturePacker::BubbleSort(Texture *&tex,bool sortID)
+void TexturePacker::BubbleSort(Image *&img, bool sortID)
 {
     int i, j, flag = 1;    // set flag to 1 to start first pass
-    Texture temp;             // holding variable
+    Image temp;             // holding variable
     int numLength = size;
     for(i = 1; (i <= numLength) && flag; i++)
     {
@@ -143,20 +131,20 @@ void TexturePacker::BubbleSort(Texture *&tex,bool sortID)
 
             if(sortID)
             {
-                if (tex[j+1].id < tex[j].id)     // ascending order simply changes to <
+                if (img[j+1].id < img[j].id)     // ascending order simply changes to <
                 {
-                    temp = tex[j];             // swap elements
-                    tex[j] = tex[j+1];
-                    tex[j+1] = temp;
+                    temp = img[j];             // swap elements
+                    img[j] = img[j+1];
+                    img[j+1] = temp;
                     flag = 1;               // indicates that a swap occurred.
                 }
             }else{
-                if (tex[j+1].width > tex[j].width ||
-                        tex[j+1].height > tex[j].height)     // ascending order simply changes to <
+                if (img[j+1].width > img[j].width ||
+                        img[j+1].height > img[j].height)     // ascending order simply changes to <
                 {
-                    temp = tex[j];             // swap elements
-                    tex[j] = tex[j+1];
-                    tex[j+1] = temp;
+                    temp = img[j];             // swap elements
+                    img[j] = img[j+1];
+                    img[j+1] = temp;
                     flag = 1;               // indicates that a swap occurred.
                 }
             }
@@ -175,7 +163,7 @@ void TexturePacker::BubbleSort(Texture *&tex,bool sortID)
 
 void TexturePacker::setTextureCount(int count)
 {
-    texArr = new Texture[count];
+    imgArr = new Image[count];
     size = count;
 }
 
@@ -183,12 +171,12 @@ void TexturePacker::setTextureCount(int count)
 
 void TexturePacker::addTexture(int width, int height)
 {
-    Texture img;
+    Image img;
     img.id = id;
     img.width = width;
     img.height = height;
 
-    texArr[id] = img;
+    imgArr[id] = img;
     id++;
 }
 
@@ -197,14 +185,14 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
 
     // сортируем для лучшего качества "упаковки",поэтому этим пренебрегать не желательно
     // вначале пойдут самые большие текстуры (но порядок индексов премешается,в конце отсортирую и индексы)
-    BubbleSort(texArr,false);
+    BubbleSort(imgArr,false);
 
 
     if ( onePixelBorder )// если нужен бордюр
     {
       for (int i=0; i < size; i++)
       {
-        Texture &img = texArr[i];
+        Image &img = imgArr[i];
         img.width+=2;
         img.height+=2;
       }
@@ -212,8 +200,8 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
     }
 
     // задаём размер исходя из самой большой тектуры
-    int atlasWidth = texArr[0].width;
-    int atlasHeight = texArr[0].height;
+    int atlasWidth = imgArr[0].width;
+    int atlasHeight = imgArr[0].height;
 
     if ( forcePowerOfTwo )
     {
@@ -225,7 +213,6 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
      Node *atlas; // наш атлас
      int i = 0;
      while( i < size){
-
          if(i == 0){
             atlas = new Node(); // создаём наш атлас
              // устанавливаю размер атласа
@@ -233,12 +220,12 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
              atlas->rect.setHeight(atlasHeight);
          }
        // пытаемся вставить картинку в атлас
-       Node *n = atlas->Insert(texArr[i].width, texArr[i].height, texArr[i].id);
+       Node *n = atlas->Insert(imgArr[i].width, imgArr[i].height, imgArr[i].id);
 
        if(n != NULL) {
          //нам это удалось!  сохраняем положение текстуры
-         texArr[i].x = n->rect.x();
-         texArr[i].y = n->rect.y();
+         imgArr[i].x = n->rect.x();
+         imgArr[i].y = n->rect.y();
          i++;
        } else {
             // места не хватает  увеличиваем размер атласа
@@ -249,8 +236,8 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
            }
            else
            {
-              atlasWidth  += texArr[i].width;
-              atlasHeight += texArr[i].height;
+              atlasWidth  += imgArr[i].width;
+              atlasHeight += imgArr[i].height;
            }
            //NOTE OpenGLES 2.0 Max Texture Size 2048x2048
            delete atlas;// удаляю атлас чтоб его снова пересобрать
@@ -264,7 +251,7 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
 
     delete atlas;
     //сортирую индексы текстур по возрастанию (т.е в том же порядке как пришли )
-    BubbleSort(texArr,true);
+    BubbleSort(imgArr,true);
 
 
 
@@ -272,7 +259,7 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
      {
        for (int i=0; i < size; i++)
        {
-         Texture &img = texArr[i];
+         Image &img = imgArr[i];
          img.x +=1;
          img.y +=1;
          img.width-=2;
@@ -291,7 +278,7 @@ void TexturePacker::packTextures(int &width, int &height, bool forcePowerOfTwo, 
 void TexturePacker::getTextureLocation(int index, int &x, int &y, int &width, int &height)
 {
 
-       Texture img = texArr[index];
+       Image img = imgArr[index];
        x = img.x;
        y = img.y;
        width = img.width;
